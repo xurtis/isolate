@@ -1,6 +1,6 @@
 [package]
 name = "isolate"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Curtis Millar <curtis@curtism.me>"]
 description = '''
 Command line tool for namespace isolation in linux.

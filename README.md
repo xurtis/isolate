@@ -9,7 +9,7 @@ facilities.
 cargo install isolate
 ```
 
-# Usage
+# Basic Usage
 
 ```bash
 isolate [--config-file <path>] <command>

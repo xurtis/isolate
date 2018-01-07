@@ -1,0 +1,21 @@
+[package]
+name = "isolate"
+version = "0.1.0"
+authors = ["Curtis Millar <curtis@curtism.me>"]
+description = '''
+Command line tool for namespace isolation in linux.
+'''
+repository = "https://github.com/xurtis/isolate"
+keywords = [
+	"linux",
+	"namespace",
+	"container",
+]
+categories = [
+	"command-line-utilities",
+	"development-tools",
+	"os",
+]
+license = "ISC"
+
+[dependencies]

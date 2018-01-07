@@ -1,6 +1,6 @@
 [package]
 name = "isolate"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Curtis Millar <curtis@curtism.me>"]
 description = '''
 Command line tool for namespace isolation in linux.
@@ -17,6 +17,7 @@ categories = [
 	"os",
 ]
 license = "ISC"
+readme = "README.md"
 
 [dependencies]
 unshare = "0.2.0"

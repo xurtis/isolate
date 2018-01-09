@@ -175,3 +175,9 @@ fn version() -> String {
         env!("CARGO_PKG_DESCRIPTION"),
     )
 }
+
+/// Test that the provided configuration file is valid.
+#[test]
+fn default_config() {
+    assert!(from_str::<Configuration>(DEFAULT_CONFIG).is_ok());
+}

@@ -1,9 +1,9 @@
 `isolate` is a command line tool for using linux's namespace isolation
 facilities.
 
-* [Documentation](https://docs.rs/isolate) ![badge](https://docs.rs/isolate/badge.svg)
+* [Documentation](https://docs.rs/isolate)
 
-# Installation
+# Installation ![crates.io](https://img.shields.io/crates/v/isolate.svg)
 
 ```bash
 cargo install isolate

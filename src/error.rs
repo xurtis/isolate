@@ -6,6 +6,7 @@ error_chain!{
 
     // Wrappers for other errors.
     foreign_links {
+		Io(::std::io::Error);
     }
 
     // Internally defined errors.
@@ -26,6 +27,12 @@ error_chain!{
 		ChildWait(err: ::errno::Errno) {
 			description("Error when waiting on a child")
 			display("ChildWait({})", err)
+		}
+
+		// Failed to continue child process after config.
+		ChildContinue(err: ::errno::Errno) {
+			description("Error continuing child after config")
+			display("ChildContinue({})", err)
 		}
     }
 }

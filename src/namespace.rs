@@ -18,6 +18,8 @@ use libc;
 
 use error::*;
 
+use super::Child;
+
 /// A trait that represents a namespace that can be created and entered.
 ///
 /// This configures the environment before a namespace is entered and after is
@@ -29,19 +31,27 @@ pub trait Namespace {
 	/// See `clone(2)` and `namespaces(7)` for more information.
 	fn clone_flag(&self) -> libc::c_int;
 
-	/// Configure system prior to entering the namespace.
+	/// Configure system prior to creating the namespace.
 	///
 	/// This executes all of the changes needed to be made external to the
 	/// namespace in order for it to operate as desired.
-	fn pre_config(&self) -> Result<()> {
+	fn prepare(&self) -> Result<()> {
 		Ok(())
 	}
 
-	/// Configure system after having entered the namespace;
+	/// Configure the system from within the namespace after creation.
 	///
 	/// This executes all of the changes needed to be made internal to the
 	/// namespace in order for it to operate as desired.
-	fn post_config(&self) -> Result<()> {
+	fn internal_config(&self) -> Result<()> {
+		Ok(())
+	}
+
+	/// Configure the system from outside the namespace after creation.
+	///
+	/// This excutes all of the changes needed to be made externally to the
+	/// namespace in order for it to operate as desired.
+	fn external_config(&self, child: &Child) -> Result<()> {
 		Ok(())
 	}
 }

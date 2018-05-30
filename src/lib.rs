@@ -42,6 +42,10 @@ impl Child {
 			}
 		}
 	}
+
+	pub fn pid(&self) -> i32 {
+		self.0
+	}
 }
 
 /// A process execution context constructed of namespaces.

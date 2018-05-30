@@ -27,7 +27,7 @@ pub trait Namespace {
 	/// Get the flag needed for clone to create new namespace.
 	///
 	/// See `clone(2)` and `namespaces(7)` for more information.
-	fn clone_flag() -> libc::c_int;
+	fn clone_flag(&self) -> libc::c_int;
 
 	/// Configure system prior to entering the namespace.
 	///
@@ -62,7 +62,7 @@ impl ControlGroup {
 }
 
 impl Namespace for ControlGroup {
-	fn clone_flag() -> libc::c_int {
+	fn clone_flag(&self) -> libc::c_int {
 		libc::CLONE_NEWCGROUP
 	}
 }
@@ -84,7 +84,7 @@ impl Ipc {
 }
 
 impl Namespace for Ipc {
-	fn clone_flag() -> libc::c_int {
+	fn clone_flag(&self) -> libc::c_int {
 		libc::CLONE_NEWIPC
 	}
 }
@@ -109,7 +109,7 @@ impl Mount {
 }
 
 impl Namespace for Mount {
-	fn clone_flag() -> libc::c_int {
+	fn clone_flag(&self) -> libc::c_int {
 		libc::CLONE_NEWNS
 	}
 }
@@ -129,7 +129,7 @@ impl Pid {
 }
 
 impl Namespace for Pid {
-	fn clone_flag() -> libc::c_int {
+	fn clone_flag(&self) -> libc::c_int {
 		libc::CLONE_NEWPID
 	}
 }
@@ -159,7 +159,7 @@ impl User {
 }
 
 impl Namespace for User {
-	fn clone_flag() -> libc::c_int {
+	fn clone_flag(&self) -> libc::c_int {
 		libc::CLONE_NEWUSER
 	}
 }
@@ -178,7 +178,7 @@ impl Uts {
 }
 
 impl Namespace for Uts {
-	fn clone_flag() -> libc::c_int {
+	fn clone_flag(&self) -> libc::c_int {
 		libc::CLONE_NEWUTS
 	}
 }

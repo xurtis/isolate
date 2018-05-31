@@ -12,6 +12,7 @@ use super::Namespace;
 /// Process IDs are unique and specific to a PID namespace. Processes from
 /// different namespaces are unable to determine any information about processes
 /// in other PID namespaces.
+#[derive(Clone)]
 pub struct Pid {}
 
 impl Pid {

@@ -31,6 +31,7 @@ use error::*;
 use ::namespace::Namespace;
 
 /// A process execution context constructed of namespaces.
+#[derive(Clone)]
 pub struct Context {
 	namespaces: Vec<Box<Namespace>>,
 }
@@ -60,7 +61,7 @@ impl Context {
 	/// The address space is copied and no references are shared.
 	pub fn exec_private(&self, f: fn()) -> Result<Child>
 	{
-		self.exec(Box::new(f), Share::Private)
+		self.exec(f, Share::Private)
 	}
 
 	/// Create and enter the context, running the given function.
@@ -69,18 +70,19 @@ impl Context {
 	/// allowing shared access to globals, etc.
 	pub fn exec_shared(&self, f: fn()) -> Result<Child>
 	{
-		self.exec(Box::new(f), Share::Shared)
+		self.exec(f, Share::Shared)
 	}
 
 	/// Execute a child with a given function.
-	fn exec(&self, close: Box<fn()>, shared: Share) -> Result<Child> {
+	fn exec(&self, close: fn(), shared: Share) -> Result<Child> {
 		// Send the closure to a new process.
 		let child = unsafe {
+			let pair = Box::new((self.clone(), close));
 			Child::from_tid(clone(
 				exec_closure,
 				create_stack(shared)?.as_ptr(),
 				self.clone_flag() | shared.addrspace() | SIGCHLD,
-				Box::into_raw(close) as *mut c_void,
+				Box::into_raw(pair) as *mut c_void,
 			))
 		}?;
 
@@ -206,9 +208,14 @@ fn exec_closure(closure: *mut c_void) -> c_int {
 		}
 	}
 
-	let close: Box<fn()> = unsafe {
-		Box::from_raw(closure as *mut fn())
+	let pair: Box<(Context, fn())> = unsafe {
+		Box::from_raw(closure as *mut (Context, fn()))
 	};
+
+	let (ref context, ref close) = pair.as_ref();
+
+	context.internal_config().expect("Unable to internally configure child");
+
 	close();
 	return EXIT_SUCCESS;
 }

@@ -11,6 +11,7 @@ use super::Namespace;
 ///
 /// The Unix Timesharing System provides the domain and hostname of the system.
 /// This is given its own namespace and can be changed within that namespace.
+#[derive(Clone)]
 pub struct Uts {}
 
 impl Uts {

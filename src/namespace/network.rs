@@ -18,6 +18,7 @@ use super::Namespace;
 /// isolate them from networking or to provide some filtered access to the
 /// global networking namespace (and external network) using virtual network
 /// devices.
+#[derive(Clone)]
 pub struct Network {}
 
 impl Network {

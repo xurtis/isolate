@@ -13,6 +13,7 @@ use super::Namespace;
 /// assigned resource limits. This ensures that the total amount of resources,
 /// such as CPU time and system memory, used by all of the process in the group
 /// is limited.
+#[derive(Clone)]
 pub struct ControlGroup {}
 
 impl ControlGroup {

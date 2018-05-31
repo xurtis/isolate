@@ -14,6 +14,7 @@ use super::Namespace;
 /// within an IPC namespace can connect to any other process in the same IPC
 /// namespace that exposes one of these mechanisms without having any
 /// information of these processes existing.
+#[derive(Clone)]
 pub struct Ipc {}
 
 impl Ipc {

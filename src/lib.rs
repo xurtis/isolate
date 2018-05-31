@@ -2,6 +2,7 @@
 
 #![warn(missing_docs)]
 #![deny(unused_must_use)]
+#![warn(missing_debug_implementations)]
 
 #[macro_use]
 extern crate error_chain;

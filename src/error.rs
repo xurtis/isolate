@@ -36,6 +36,12 @@ error_chain!{
 			description("Error continuing child after config")
 			display("ChildContinue({})", err)
 		}
+
+		// Failed to perform a mount.
+		Mount(err: ::errno::Errno, mount: ::namespace::DirMount) {
+			description("Could not perform mount")
+			display("Mount({}, {:?})", err, mount)
+		}
     }
 }
 
@@ -43,5 +49,8 @@ error_chain!{
 macro_rules! errno {
 	($kind:ident) => (
 		ErrorKind::$kind(::errno::errno()).into()
-	)
+	);
+	($kind:ident, $($arg:expr),*) => (
+		ErrorKind::$kind(::errno::errno(), $($arg),*).into()
+	);
 }

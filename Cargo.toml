@@ -23,7 +23,7 @@ readme = "README.md"
 name = "isolate"
 path = "src/lib.rs"
 test = true
-doctest = true
+doctest = false
 doc = true
 bench = false
 

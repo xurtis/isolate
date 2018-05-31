@@ -27,6 +27,7 @@ use super::Namespace;
 /// The root user of a user namespace can, for the purposes of that namespace
 /// and child namespaces, act as user 0 for all system operations allowing for
 /// operations such as mount and chroot.
+#[derive(Clone)]
 pub struct User {
 	map_root_user: bool,
 	map_root_group: bool,

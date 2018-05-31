@@ -15,7 +15,7 @@ fn main() -> isolate::Result<()> {
 		.with(user_ns)
 		.with(namespace::Mount::new());
 
-	let child = context.exec(shell)?;
+	let child = context.exec_private(shell)?;
 	child.wait()
 }
 

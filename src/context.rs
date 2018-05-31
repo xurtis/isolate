@@ -2,28 +2,29 @@ use std::ops::Deref;
 use std::ptr::{NonNull, self};
 
 use libc::{
-	SIGCONT,
-	clone,
-	c_int,
-	kill,
-	pid_t,
-	waitpid,
-	SIGCHLD,
-	c_void,
-	MAP_SHARED,
-	MAP_PRIVATE,
-	size_t,
-	off_t,
-	PROT_WRITE,
-	PROT_READ,
-	MAP_ANONYMOUS,
-	MAP_STACK,
-	_SC_PAGE_SIZE,
-	sysconf,
-	mmap,
-	SIGSTOP,
-	getpid,
+	CLONE_VM,
 	EXIT_SUCCESS,
+	MAP_ANONYMOUS,
+	MAP_PRIVATE,
+	MAP_SHARED,
+	MAP_STACK,
+	PROT_READ,
+	PROT_WRITE,
+	SIGCHLD,
+	SIGCONT,
+	SIGSTOP,
+	_SC_PAGE_SIZE,
+	c_int,
+	c_void,
+	clone,
+	getpid,
+	kill,
+	mmap,
+	off_t,
+	pid_t,
+	size_t,
+	sysconf,
+	waitpid,
 };
 
 use error::*;
@@ -54,16 +55,31 @@ impl Context {
 		self
 	}
 
-	/// Create and enter the context, running the given function.
-	pub fn exec(&self, f: fn()) -> Result<Child>
+	/// Create a process in a new private address space.
+	///
+	/// The address space is copied and no references are shared.
+	pub fn exec_private(&self, f: fn()) -> Result<Child>
 	{
+		self.exec(Box::new(f), Share::Private)
+	}
+
+	/// Create and enter the context, running the given function.
+	///
+	/// The address space is shared with the child and the calling process
+	/// allowing shared access to globals, etc.
+	pub fn exec_shared(&self, f: fn()) -> Result<Child>
+	{
+		self.exec(Box::new(f), Share::Shared)
+	}
+
+	/// Execute a child with a given function.
+	fn exec(&self, close: Box<fn()>, shared: Share) -> Result<Child> {
 		// Send the closure to a new process.
-		let close = Box::new(f);
 		let child = unsafe {
 			Child::from_tid(clone(
 				exec_closure,
-				create_stack(Share::Shared)?.as_ptr(),
-				self.clone_flag() | SIGCHLD,
+				create_stack(shared)?.as_ptr(),
+				self.clone_flag() | shared.addrspace() | SIGCHLD,
 				Box::into_raw(close) as *mut c_void,
 			))
 		}?;
@@ -114,6 +130,7 @@ impl Namespace for Context {
 	}
 }
 
+#[derive(Copy, Clone, Debug)]
 enum Share {
 	Shared,
 	Private
@@ -124,6 +141,13 @@ impl Share {
 		match *self {
 			Share::Shared => MAP_SHARED,
 			Share::Private => MAP_PRIVATE,
+		}
+	}
+
+	fn addrspace(&self) -> c_int {
+		match *self {
+			Share::Private => CLONE_VM,
+			Share::Shared => 0,
 		}
 	}
 }

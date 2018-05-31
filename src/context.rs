@@ -63,7 +63,7 @@ impl Context {
 			Child::from_tid(clone(
 				exec_closure,
 				create_stack(Share::Shared)?.as_ptr(),
-				self.flags() | SIGCHLD,
+				self.clone_flag() | SIGCHLD,
 				Box::into_raw(close) as *mut c_void,
 			))
 		}?;
@@ -74,15 +74,40 @@ impl Context {
 		Ok(child)
 	}
 
-	/// Get the clone flags for the context.
-	fn flags(&self) -> c_int {
-		self.namespaces.iter().fold(0, |f, n| f | n.clone_flag())
-	}
-
 	/// Configure the context of the child externally.
 	fn configure(&self, child: &Child) -> Result<()> {
 		for namespace in &self.namespaces {
 			namespace.external_config(child)?;
+		}
+
+		Ok(())
+	}
+}
+
+impl Namespace for Context {
+	fn clone_flag(&self) -> c_int {
+		self.namespaces.iter().fold(0, |f, n| f | n.clone_flag())
+	}
+
+	fn prepare(&self) -> Result<()> {
+		for ns in &self.namespaces {
+			ns.prepare()?;
+		}
+
+		Ok(())
+	}
+
+	fn internal_config(&self) -> Result<()> {
+		for ns in &self.namespaces {
+			ns.internal_config()?;
+		}
+
+		Ok(())
+	}
+
+	fn external_config(&self, child: &Child) -> Result<()> {
+		for ns in &self.namespaces {
+			ns.external_config(child)?;
 		}
 
 		Ok(())

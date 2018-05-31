@@ -36,3 +36,10 @@ error_chain!{
 		}
     }
 }
+
+/// Wrap a syscall error in a known error.
+macro_rules! errno {
+	($kind:ident) => (
+		ErrorKind::$kind(errno()).into()
+	)
+}

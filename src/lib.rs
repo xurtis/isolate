@@ -7,6 +7,7 @@ extern crate error_chain;
 extern crate errno;
 extern crate libc;
 
+#[macro_use]
 mod error;
 pub mod namespace;
 
@@ -19,9 +20,6 @@ use namespace::Namespace;
 use libc::{c_void, c_int, clone, mmap, off_t, pid_t, size_t, sysconf, waitpid, kill, getpid};
 use errno::errno;
 
-macro_rules! errno {
-	($kind:ident) => (ErrorKind::$kind(errno()).into())
-}
 
 /// A child thread.
 pub struct Child(pid_t);

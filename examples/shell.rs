@@ -13,14 +13,21 @@ fn main() -> isolate::Result<()> {
 		.map_root_user()
 		.map_root_group();
 
-	let mount_ns = Mount::new()
-		.mount(DirMount::recursive_bind("/proc", "proc")
-			.make_target_dir()
-		);
+	let procfs = Mount::recursive_bind("/proc", "proc")?
+		.make_target_dir()
+		.unmount();
+	let dev = Mount::recursive_bind("/dev", "dev")?
+		.make_target_dir()
+		.unmount();
+	let sys = Mount::recursive_bind("/sys", "sys")?
+		.make_target_dir()
+		.unmount();
 
 	let context = Context::new()
 		.with(user_ns)
-		.with(mount_ns);
+		.with(procfs)
+		.with(dev)
+		.with(sys);
 
 	let child = context.exec_private(shell)?;
 	child.wait()

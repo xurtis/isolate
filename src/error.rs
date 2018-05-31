@@ -9,6 +9,8 @@ error_chain!{
     // Wrappers for other errors.
     foreign_links {
 		Io(::std::io::Error);
+		Nul(::std::ffi::NulError);
+		Utf8(::std::str::Utf8Error);
     }
 
     // Internally defined errors.
@@ -38,7 +40,7 @@ error_chain!{
 		}
 
 		// Failed to perform a mount.
-		Mount(err: ::errno::Errno, mount: ::namespace::DirMount) {
+		Mount(err: ::errno::Errno, mount: ::namespace::Mount) {
 			description("Could not perform mount")
 			display("Mount({}, {:?})", err, mount)
 		}

@@ -115,8 +115,8 @@ impl Namespace for Context {
 		Ok(())
 	}
 
-	fn internal_config(&self) -> Result<()> {
-		for ns in &self.namespaces {
+	fn internal_config(&mut self) -> Result<()> {
+		for ns in &mut self.namespaces {
 			ns.internal_config()?;
 		}
 
@@ -129,6 +129,13 @@ impl Namespace for Context {
 		}
 
 		Ok(())
+	}
+}
+
+impl Drop for Context {
+	fn drop(&mut self) {
+		// Forcibly drop namespaces in reverse order.
+		while self.namespaces.pop().is_some() {};
 	}
 }
 
@@ -208,11 +215,11 @@ fn exec_closure(closure: *mut c_void) -> c_int {
 		}
 	}
 
-	let pair: Box<(Context, fn())> = unsafe {
+	let mut pair: Box<(Context, fn())> = unsafe {
 		Box::from_raw(closure as *mut (Context, fn()))
 	};
 
-	let (ref context, ref close) = pair.as_ref();
+	let (ref mut context, ref close) = pair.as_mut();
 
 	context.internal_config().expect("Unable to internally configure child");
 

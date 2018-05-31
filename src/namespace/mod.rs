@@ -28,7 +28,7 @@ use libc::{
 
 pub use self::control_group::ControlGroup;
 pub use self::ipc::Ipc;
-pub use self::mount::{Mount, DirMount};
+pub use self::mount::{Mount, EmptyMount};
 pub use self::network::Network;
 pub use self::pid::Pid;
 pub use self::user::User;
@@ -62,7 +62,7 @@ pub trait Namespace: NamespaceClone {
 	///
 	/// This executes all of the changes needed to be made internal to the
 	/// namespace in order for it to operate as desired.
-	fn internal_config(&self) -> Result<()> {
+	fn internal_config(&mut self) -> Result<()> {
 		Ok(())
 	}
 

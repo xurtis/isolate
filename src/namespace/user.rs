@@ -69,7 +69,7 @@ impl User {
 
 	/// Map root group to calling user gid.
 	fn set_root_group(&self, child: &Child) -> Result<()> {
-		SetGroups::Deny.write(child);
+		SetGroups::Deny.write(child)?;
 
 		let gid = unsafe { getgid() };
 		let mut gid_map = OpenOptions::new()
@@ -119,7 +119,7 @@ impl SetGroups {
 		let mut setgroup = OpenOptions::new()
 			.append(true)
 			.open(format!("/proc/{}/setgroups", child.pid()))?;
-		setgroup.write_all(format!("{}", self).as_bytes());
+		setgroup.write_all(format!("{}", self).as_bytes())?;
 
 		Ok(())
 	}

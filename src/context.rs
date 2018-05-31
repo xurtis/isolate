@@ -69,7 +69,7 @@ impl Context {
 		}?;
 
 		self.configure(&child)?;
-		child.cont();
+		child.cont()?;
 
 		Ok(child)
 	}
@@ -193,13 +193,14 @@ fn exec_closure(closure: *mut c_void) -> c_int {
 pub struct Child(pid_t);
 
 impl Child {
-	pub fn from_tid(tid: c_int) -> Result<Child> {
+	fn from_tid(tid: c_int) -> Result<Child> {
 		match tid {
 			-1 => Err(errno!(Clone)),
 			tid => Ok(Child(tid)),
 		}
 	}
 
+	/// Wait for a the child process to exit.
 	pub fn wait(self) -> Result<()> {
 		let Child(pid) = self;
 
@@ -213,6 +214,7 @@ impl Child {
 		}
 	}
 
+	/// Get the PID of the child process.
 	pub fn pid(&self) -> i32 {
 		self.0
 	}

@@ -1,11 +1,6 @@
-use libc::{
-	CLONE_NEWIPC,
-	c_int,
-};
-
 use ::error::*;
 use ::Child;
-use super::Namespace;
+use super::{Namespace, CloneFlags};
 
 /// Inter-Process Communication.
 ///
@@ -14,18 +9,18 @@ use super::Namespace;
 /// within an IPC namespace can connect to any other process in the same IPC
 /// namespace that exposes one of these mechanisms without having any
 /// information of these processes existing.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Ipc {}
 
 impl Ipc {
-	/// Configure a new IPC namespace for creation.
-	pub fn new() -> Ipc {
-		Ipc {}
-	}
+    /// Configure a new IPC namespace for creation.
+    pub fn new() -> Ipc {
+        Ipc {}
+    }
 }
 
 impl Namespace for Ipc {
-	fn clone_flag(&self) -> c_int {
-		CLONE_NEWIPC
-	}
+    fn clone_flag(&self) -> Option<CloneFlags> {
+        Some(CloneFlags::CLONE_NEWIPC)
+    }
 }

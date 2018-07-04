@@ -2,6 +2,7 @@
 
 
 extern crate isolate;
+extern crate nix;
 
 use std::process::Command;
 
@@ -9,30 +10,31 @@ use isolate::*;
 use isolate::namespace::*;
 
 fn main() -> isolate::Result<()> {
-	let user_ns = User::new()
-		.map_root_user()
-		.map_root_group();
+    let user_ns = User::new()
+        .map_root_user()
+        .map_root_group();
 
-	let procfs = Mount::recursive_bind("/proc", "proc")?
-		.make_target_dir()
-		.unmount();
-	let dev = Mount::recursive_bind("/dev", "dev")?
-		.make_target_dir()
-		.unmount();
-	let sys = Mount::recursive_bind("/sys", "sys")?
-		.make_target_dir()
-		.unmount();
+    let procfs = Mount::recursive_bind("/proc", "proc")
+        .make_target_dir();
+    let dev = Mount::recursive_bind("/dev", "dev")
+        .make_target_dir();
+    let sys = Mount::recursive_bind("/sys", "sys")
+        .make_target_dir();
 
-	let context = Context::new()
-		.with(user_ns)
-		.with(procfs)
-		.with(dev)
-		.with(sys);
+    let context = Context::new()
+        .with(user_ns)
+        .with(procfs)
+        .with(dev)
+        .with(sys);
 
-	let child = context.exec_private(shell)?;
-	child.wait()
+    let child = context.exec_private(shell)?;
+    ::std::mem::drop(context);
+    child.wait()?;
+
+    Ok(())
 }
 
 fn shell() {
-	Command::new("/bin/sh").status().unwrap();
+    eprintln!("Running shell...");
+    Command::new("/bin/sh").status().unwrap();
 }

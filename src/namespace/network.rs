@@ -1,11 +1,6 @@
-use libc::{
-	CLONE_NEWNET,
-	c_int,
-};
-
 use ::error::*;
 use ::Child;
-use super::Namespace;
+use super::{Namespace, CloneFlags};
 
 /// Networking
 ///
@@ -18,18 +13,18 @@ use super::Namespace;
 /// isolate them from networking or to provide some filtered access to the
 /// global networking namespace (and external network) using virtual network
 /// devices.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Network {}
 
 impl Network {
-	/// Configure a new IPC namespace for creation.
-	pub fn new() -> Network {
-		Network {}
-	}
+    /// Configure a new IPC namespace for creation.
+    pub fn new() -> Network {
+        Network {}
+    }
 }
 
 impl Namespace for Network {
-	fn clone_flag(&self) -> c_int {
-		CLONE_NEWNET
-	}
+    fn clone_flag(&self) -> Option<CloneFlags> {
+        Some(CloneFlags::CLONE_NEWNET)
+    }
 }

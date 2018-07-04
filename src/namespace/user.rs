@@ -2,15 +2,15 @@ use std::fs::OpenOptions;
 use std::io::Write;
 
 use libc::{
-	CLONE_NEWUSER,
-	c_int,
-	getgid,
-	getuid,
+    CLONE_NEWUSER,
+    c_int,
+    getgid,
+    getuid,
 };
 
 use ::error::*;
 use ::Child;
-use super::Namespace;
+use super::{Namespace, CloneFlags};
 
 /// Users and Groups
 ///
@@ -27,112 +27,112 @@ use super::Namespace;
 /// The root user of a user namespace can, for the purposes of that namespace
 /// and child namespaces, act as user 0 for all system operations allowing for
 /// operations such as mount and chroot.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct User {
-	map_root_user: bool,
-	map_root_group: bool,
+    map_root_user: bool,
+    map_root_group: bool,
 }
 
 impl User {
-	/// Configure a new user namespace for creation.
-	pub fn new() -> User {
-		Default::default()
-	}
+    /// Configure a new user namespace for creation.
+    pub fn new() -> User {
+        Default::default()
+    }
 
-	/// Map the root user to the creator of the namespace.
-	pub fn map_root_user(self) -> User {
-		User {
-			map_root_user: true,
-			..
-			self
-		}
-	}
+    /// Map the root user to the creator of the namespace.
+    pub fn map_root_user(self) -> User {
+        User {
+            map_root_user: true,
+            ..
+            self
+        }
+    }
 
-	/// Map the root group to the group of the creator of the namespace.
-	pub fn map_root_group(self) -> User {
-		User {
-			map_root_group: true,
-			..
-			self
-		}
-	}
+    /// Map the root group to the group of the creator of the namespace.
+    pub fn map_root_group(self) -> User {
+        User {
+            map_root_group: true,
+            ..
+            self
+        }
+    }
 
-	/// Map root to the calling user.
-	fn set_root_user(&self, child: &Child) -> Result<()> {
-		let uid = unsafe { getuid() };
-		let mut uid_map = OpenOptions::new()
-			.append(true)
-			.open(format!("/proc/{}/uid_map", child.pid()))?;
-		uid_map.write_all(format!("0 {} 1", uid).as_bytes())?;
+    /// Map root to the calling user.
+    fn set_root_user(&self, child: &Child) -> Result<()> {
+        let uid = unsafe { getuid() };
+        let mut uid_map = OpenOptions::new()
+            .append(true)
+            .open(format!("/proc/{}/uid_map", child.pid()))?;
+        uid_map.write_all(format!("0 {} 1", uid).as_bytes())?;
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	/// Map root group to calling user gid.
-	fn set_root_group(&self, child: &Child) -> Result<()> {
-		SetGroups::Deny.write(child)?;
+    /// Map root group to calling user gid.
+    fn set_root_group(&self, child: &Child) -> Result<()> {
+        SetGroups::Deny.write(child)?;
 
-		let gid = unsafe { getgid() };
-		let mut gid_map = OpenOptions::new()
-			.append(true)
-			.open(format!("/proc/{}/gid_map", child.pid()))?;
-		gid_map.write_all(format!("0 {} 1", gid).as_bytes())?;
+        let gid = unsafe { getgid() };
+        let mut gid_map = OpenOptions::new()
+            .append(true)
+            .open(format!("/proc/{}/gid_map", child.pid()))?;
+        gid_map.write_all(format!("0 {} 1", gid).as_bytes())?;
 
-		Ok(())
-	}
+        Ok(())
+    }
 }
 
 impl Default for User {
-	fn default() -> User {
-		User {
-			map_root_user: false,
-			map_root_group: false,
-		}
-	}
+    fn default() -> User {
+        User {
+            map_root_user: false,
+            map_root_group: false,
+        }
+    }
 }
 
 impl Namespace for User {
-	fn clone_flag(&self) -> c_int {
-		CLONE_NEWUSER
-	}
+    fn clone_flag(&self) -> Option<CloneFlags> {
+        Some(CloneFlags::CLONE_NEWUSER)
+    }
 
-	fn external_config(&self, child: &Child) -> Result<()> {
-		if self.map_root_user {
-			self.set_root_user(child)?;
-		}
+    fn external_config(&self, child: &Child) -> Result<()> {
+        if self.map_root_user {
+            self.set_root_user(child)?;
+        }
 
-		if self.map_root_group {
-			self.set_root_group(child)?;
-		}
+        if self.map_root_group {
+            self.set_root_group(child)?;
+        }
 
-		Ok(())
-	}
+        Ok(())
+    }
 }
 
 /// Set the ability for the child process to change its own group mappings.
 enum SetGroups {
-	Allow,
-	Deny
+    Allow,
+    Deny
 }
 
 impl SetGroups {
-	fn write(&self, child: &Child) -> Result<()> {
-		let mut setgroup = OpenOptions::new()
-			.append(true)
-			.open(format!("/proc/{}/setgroups", child.pid()))?;
-		setgroup.write_all(format!("{}", self).as_bytes())?;
+    fn write(&self, child: &Child) -> Result<()> {
+        let mut setgroup = OpenOptions::new()
+            .append(true)
+            .open(format!("/proc/{}/setgroups", child.pid()))?;
+        setgroup.write_all(format!("{}", self).as_bytes())?;
 
-		Ok(())
-	}
+        Ok(())
+    }
 }
 
 impl ::std::fmt::Display for SetGroups {
-	fn fmt(&self, f: &mut ::std::fmt::Formatter)
-		-> ::std::result::Result<(), ::std::fmt::Error>
-	{
-		match *self {
-			SetGroups::Allow => write!(f, "allow"),
-			SetGroups::Deny => write!(f, "deny"),
-		}
-	}
+    fn fmt(&self, f: &mut ::std::fmt::Formatter)
+        -> ::std::result::Result<(), ::std::fmt::Error>
+    {
+        match *self {
+            SetGroups::Allow => write!(f, "allow"),
+            SetGroups::Deny => write!(f, "deny"),
+        }
+    }
 }

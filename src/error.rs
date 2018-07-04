@@ -8,51 +8,16 @@ error_chain!{
 
     // Wrappers for other errors.
     foreign_links {
-		Io(::std::io::Error);
-		Nul(::std::ffi::NulError);
-		Utf8(::std::str::Utf8Error);
+        Io(::std::io::Error);
+        Nul(::std::ffi::NulError);
+        Utf8(::std::str::Utf8Error);
+        Nix(::nix::Error);
     }
 
     // Internally defined errors.
     errors {
-		// A stack allocation via mmap failed
-		StackAllocation(err: ::errno::Errno) {
-			description("Could not allocate stack")
-			display("StackAllocation({})", err)
-		}
-
-		// A clone failed.
-		Clone(err: ::errno::Errno) {
-			description("Could not create thread clone")
-			display("Clone({})", err)
-		}
-
-		// Failed to wait on a child.
-		ChildWait(err: ::errno::Errno) {
-			description("Error when waiting on a child")
-			display("ChildWait({})", err)
-		}
-
-		// Failed to continue child process after config.
-		ChildContinue(err: ::errno::Errno) {
-			description("Error continuing child after config")
-			display("ChildContinue({})", err)
-		}
-
-		// Failed to perform a mount.
-		Mount(err: ::errno::Errno, mount: ::namespace::Mount) {
-			description("Could not perform mount")
-			display("Mount({}, {:?})", err, mount)
-		}
+        StackAllocation {
+            description("Could not map stack region.")
+        }
     }
-}
-
-/// Wrap a syscall error in a known error.
-macro_rules! errno {
-	($kind:ident) => (
-		ErrorKind::$kind(::errno::errno()).into()
-	);
-	($kind:ident, $($arg:expr),*) => (
-		ErrorKind::$kind(::errno::errno(), $($arg),*).into()
-	);
 }

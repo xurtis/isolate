@@ -6,8 +6,8 @@
 
 #[macro_use]
 extern crate error_chain;
-extern crate errno;
 extern crate libc;
+extern crate nix;
 
 #[macro_use]
 mod error;

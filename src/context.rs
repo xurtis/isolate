@@ -1,267 +1,284 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut, BitOr};
 use std::ptr::{NonNull, self};
+use std::slice;
+use std::panic::{PanicInfo, self};
+use std::process::abort;
 
-use libc::{
-	CLONE_VM,
-	EXIT_SUCCESS,
-	MAP_ANONYMOUS,
-	MAP_PRIVATE,
-	MAP_SHARED,
-	MAP_STACK,
-	PROT_READ,
-	PROT_WRITE,
-	SIGCHLD,
-	SIGCONT,
-	SIGSTOP,
-	_SC_PAGE_SIZE,
-	c_int,
-	c_void,
-	clone,
-	getpid,
-	kill,
-	mmap,
-	off_t,
-	pid_t,
-	size_t,
-	sysconf,
-	waitpid,
-};
+use libc::{size_t, c_int, off_t, c_void, SIGCHLD};
+use nix::sched::{clone, CloneFlags};
+use nix::sys::mman::{mmap, MapFlags, ProtFlags};
+use nix::sys::signal::{kill, SIGSTOP, SIGCONT};
+use nix::unistd::{getpid, sysconf, Pid, SysconfVar};
+use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
 
 use error::*;
 use ::namespace::Namespace;
 
 /// A process execution context constructed of namespaces.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Context {
-	namespaces: Vec<Box<Namespace>>,
+    namespaces: Vec<Box<Namespace>>,
 }
 
 impl Context {
-	/// Create a new empty context.
-	///
-	/// This will effectively be configured to be a context that executes code
-	/// in a new process with the same privileges as the parent.
-	pub fn new() -> Context {
-		Context {
-			namespaces: Vec::new()
-		}
-	}
+    /// Create a new empty context.
+    ///
+    /// This will effectively be configured to be a context that executes code
+    /// in a new process with the same privileges as the parent.
+    pub fn new() -> Context {
+        Context {
+            namespaces: Vec::new()
+        }
+    }
 
-	/// Add a namespace configuration to the context.
-	pub fn with<N>(mut self, ns: N) -> Context
-	where
-		N: 'static + Namespace
-	{
-		self.namespaces.push(Box::new(ns));
-		self
-	}
+    /// Add a namespace configuration to the context.
+    pub fn with<N>(mut self, ns: N) -> Context
+    where
+        N: 'static + Namespace
+    {
+        self.namespaces.push(Box::new(ns));
+        self
+    }
 
-	/// Create a process in a new private address space.
-	///
-	/// The address space is copied and no references are shared.
-	pub fn exec_private(&self, f: fn()) -> Result<Child>
-	{
-		self.exec(f, Share::Private)
-	}
+    /// Create a process in a new private address space.
+    ///
+    /// The address space is copied and no references are shared.
+    pub fn exec_private<C>(&self, f: C) -> Result<Child>
+    where
+        C: FnMut() + Send + 'static
+    {
+        self.exec(f, Share::Private)
+    }
 
-	/// Create and enter the context, running the given function.
-	///
-	/// The address space is shared with the child and the calling process
-	/// allowing shared access to globals, etc.
-	pub fn exec_shared(&self, f: fn()) -> Result<Child>
-	{
-		self.exec(f, Share::Shared)
-	}
+    /// Create and enter the context, running the given function.
+    ///
+    /// The address space is shared with the child and the calling process
+    /// allowing shared access to globals, etc.
+    pub fn exec_shared<C>(&self, f: C) -> Result<Child>
+    where
+        C: FnMut() + Send + 'static
+    {
+        self.exec(f, Share::Shared)
+    }
 
-	/// Execute a child with a given function.
-	fn exec(&self, close: fn(), shared: Share) -> Result<Child> {
-		// Send the closure to a new process.
-		let child = unsafe {
-			let pair = Box::new((self.clone(), close));
-			Child::from_tid(clone(
-				exec_closure,
-				create_stack(shared)?.as_ptr(),
-				self.clone_flag() | shared.addrspace() | SIGCHLD,
-				Box::into_raw(pair) as *mut c_void,
-			))
-		}?;
+    /// Execute a child with a given function.
+    fn exec<C>(&self, child: C, shared: Share) -> Result<Child>
+    where
+        C: FnMut() + Send + 'static
+    {
+        let flags = vec![self.clone_flag(), shared.addrspace()]
+            .into_iter()
+            .flat_map(|s| s.into_iter())
+            .collect();
 
-		self.configure(&child)?;
-		child.cont()?;
+        // Send the closure to a new process.
+        let child = Child::from_tid(clone(
+            self.wrap(child),
+            Stack::new(shared)?.region_mut(),
+            flags,
+            Some(SIGCHLD),
+        )?);
 
-		Ok(child)
-	}
+        self.configure(&child)?;
+        child.cont()?;
 
-	/// Configure the context of the child externally.
-	fn configure(&self, child: &Child) -> Result<()> {
-		for namespace in &self.namespaces {
-			namespace.external_config(child)?;
-		}
+        Ok(child)
+    }
 
-		Ok(())
-	}
+    /// Initialise the child process.
+    fn wrap<C>(&self, mut child: C) -> Box<FnMut() -> isize + Send + 'static>
+    where
+        C: FnMut() + Send + 'static
+    {
+        let mut context = self.clone();
+        Box::new(move || {
+            panic::set_hook(Box::new(Context::panic_hook));
+
+            kill(getpid(), SIGSTOP).expect("Stop child before running");
+            if let Err(err) = context.internal_config() {
+                eprintln!(
+                    "Failed to configure context internally: {}",
+                    err
+                );
+            }
+            child();
+            0
+        })
+    }
+
+    /// A hook to catch panics within a child.
+    fn panic_hook(info: &PanicInfo) {
+        eprintln!("Context panic: {}", info);
+        abort();
+    }
+
+    /// Configure the context of the child externally.
+    fn configure(&self, child: &Child) -> Result<()> {
+        for namespace in &self.namespaces {
+            namespace.external_config(child)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Namespace for Context {
-	fn clone_flag(&self) -> c_int {
-		self.namespaces.iter().fold(0, |f, n| f | n.clone_flag())
-	}
+    fn clone_flag(&self) -> Option<CloneFlags> {
+        Some(
+            self.namespaces.iter()
+                .flat_map(|n| n.clone_flag())
+                .collect()
+        )
+    }
 
-	fn prepare(&self) -> Result<()> {
-		for ns in &self.namespaces {
-			ns.prepare()?;
-		}
+    fn prepare(&self) -> Result<()> {
+        for ns in &self.namespaces {
+            ns.prepare()?;
+        }
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	fn internal_config(&mut self) -> Result<()> {
-		for ns in &mut self.namespaces {
-			ns.internal_config()?;
-		}
+    fn internal_config(&mut self) -> Result<()> {
+        for ns in &mut self.namespaces {
+            ns.internal_config()?;
+        }
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	fn external_config(&self, child: &Child) -> Result<()> {
-		for ns in &self.namespaces {
-			ns.external_config(child)?;
-		}
+    fn external_config(&self, child: &Child) -> Result<()> {
+        for ns in &self.namespaces {
+            ns.external_config(child)?;
+        }
 
-		Ok(())
-	}
+        Ok(())
+    }
 }
 
 impl Drop for Context {
-	fn drop(&mut self) {
-		// Forcibly drop namespaces in reverse order.
-		while self.namespaces.pop().is_some() {};
-	}
+    fn drop(&mut self) {
+        while self.namespaces.pop().is_some() {};
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
 enum Share {
-	Shared,
-	Private
+    Shared,
+    Private
 }
 
 impl Share {
-	fn map(&self) -> c_int {
-		match *self {
-			Share::Shared => MAP_SHARED,
-			Share::Private => MAP_PRIVATE,
-		}
-	}
+    fn map(&self) -> MapFlags {
+        match *self {
+            Share::Shared => MapFlags::MAP_SHARED,
+            Share::Private => MapFlags::MAP_PRIVATE,
+        }
+    }
 
-	fn addrspace(&self) -> c_int {
-		match *self {
-			Share::Private => CLONE_VM,
-			Share::Shared => 0,
-		}
-	}
+    fn addrspace(&self) -> Option<CloneFlags> {
+        match *self {
+            Share::Private => None,
+            Share::Shared => Some(CloneFlags::CLONE_VM),
+        }
+    }
 }
 
-struct Stack(NonNull<c_void>);
+struct Stack {
+    start: NonNull<u8>,
+    size: usize,
+}
 
 impl Stack {
-	fn from_ptr(ptr: *mut c_void, size: size_t) -> Result<Stack> {
-		match ptr as isize {
-			-1 | 0 => Err(errno!(StackAllocation)),
-			ptr => unsafe {
-				Ok(Stack(NonNull::new_unchecked(
-					(ptr + size as isize) as *mut c_void
-				)))
-			},
-		}
-	}
+    const PAGES: size_t = 2 * 1024;
+    const NO_FILE: c_int = -1;
+    const NO_OFFSET: off_t = 0;
+
+    fn new(share: Share) -> Result<Stack> {
+        let prot = ProtFlags::PROT_WRITE | ProtFlags::PROT_READ;
+        let flags =
+            share.map() |
+            MapFlags::MAP_ANONYMOUS |
+            MapFlags::MAP_STACK;
+
+        let size = Stack::PAGES * sysconf(SysconfVar::PAGE_SIZE)?
+            .expect("Getting page size") as size_t;
+
+        let address = unsafe {
+            mmap(
+                ptr::null_mut(),
+                size,
+                prot,
+                flags,
+                Stack::NO_FILE,
+                Stack::NO_OFFSET
+            )
+        }?;
+
+        Stack::from_ptr(address as *mut c_void, size)
+    }
+
+    fn from_ptr(ptr: *mut c_void, size: usize) -> Result<Stack> {
+        match ptr as isize {
+            -1 | 0 => Err(ErrorKind::StackAllocation.into()),
+            ptr => unsafe {
+                Ok(Stack {
+                    start: NonNull::new_unchecked(ptr as *mut u8),
+                    size: size,
+                })
+            },
+        }
+    }
+
+    fn region_mut(&mut self) -> &mut [u8] {
+        unsafe {
+            slice::from_raw_parts_mut(self.start.as_ptr(), self.size)
+        }
+    }
+
+    fn region(&self) -> &[u8] {
+        unsafe {
+            slice::from_raw_parts(self.start.as_ptr(), self.size)
+        }
+    }
 }
 
 impl Deref for Stack {
-	type Target = NonNull<c_void>;
+    type Target = [u8];
 
-	fn deref(&self) -> &NonNull<c_void> {
-		&self.0
-	}
+    fn deref(&self) -> &[u8] {
+        self.region()
+    }
 }
 
-const STACK_PAGES: size_t = 2 * 1024;
-const NO_FILE: c_int = -1;
-const NO_OFFSET: off_t = 0;
-
-/// Create a new stack in which to execute a child function.
-fn create_stack(share: Share) -> Result<Stack> {
-	let prot = PROT_WRITE | PROT_READ;
-	let flags =
-		share.map() |
-		MAP_ANONYMOUS |
-		MAP_STACK;
-
-	unsafe {
-		let size = STACK_PAGES * sysconf(_SC_PAGE_SIZE) as size_t;
-		Stack::from_ptr(
-			mmap(ptr::null_mut(), size, prot, flags, NO_FILE, NO_OFFSET),
-			size
-		)
-	}
-}
-
-/// Execute a function from a closure.
-extern "C"
-fn exec_closure(closure: *mut c_void) -> c_int {
-	// Stop and wait for parent to finish config.
-	unsafe {
-		if kill(getpid(), SIGSTOP) != 0 {
-			panic!("Could not stop child before running")
-		}
-	}
-
-	let mut pair: Box<(Context, fn())> = unsafe {
-		Box::from_raw(closure as *mut (Context, fn()))
-	};
-
-	let (ref mut context, ref close) = pair.as_mut();
-
-	context.internal_config().expect("Unable to internally configure child");
-
-	close();
-	return EXIT_SUCCESS;
+impl DerefMut for Stack {
+    fn deref_mut(&mut self) -> &mut [u8] {
+        self.region_mut()
+    }
 }
 
 /// The child thread that has been started in the context.
-pub struct Child(pid_t);
+#[derive(Debug)]
+pub struct Child(Pid);
 
 impl Child {
-	fn from_tid(tid: c_int) -> Result<Child> {
-		match tid {
-			-1 => Err(errno!(Clone)),
-			tid => Ok(Child(tid)),
-		}
-	}
+    fn from_tid(tid: Pid) -> Child {
+        Child(tid)
+    }
 
-	/// Wait for a the child process to exit.
-	pub fn wait(self) -> Result<()> {
-		let Child(pid) = self;
+    /// Wait for a the child process to exit.
+    pub fn wait(self) -> Result<WaitStatus> {
+        Ok(waitpid(self.pid(), None)?)
+    }
 
-		let mut wstatus = 0;
+    /// Get the PID of the child process.
+    pub fn pid(&self) -> Pid {
+        self.0.clone()
+    }
 
-		unsafe {
-			match waitpid(pid, &mut wstatus as *mut c_int, 0) {
-				-1 => Err(errno!(ChildWait)),
-				_ => Ok(())
-			}
-		}
-	}
-
-	/// Get the PID of the child process.
-	pub fn pid(&self) -> i32 {
-		self.0
-	}
-
-	/// Tell the child to continue execution.
-	fn cont(&self) -> Result<()> {
-		match unsafe { kill(self.pid(), SIGCONT) } {
-			-1 => Err(errno!(ChildContinue)),
-			_ => Ok(())
-		}
-	}
+    /// Tell the child to continue execution.
+    fn cont(&self) -> Result<()> {
+        waitpid(self.pid(), Some(WaitPidFlag::WSTOPPED))?;
+        Ok(kill(self.0, SIGCONT)?)
+    }
 }

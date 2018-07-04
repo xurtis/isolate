@@ -1,29 +1,24 @@
-use libc::{
-	CLONE_NEWPID,
-	c_int,
-};
-
 use ::error::*;
 use ::Child;
-use super::Namespace;
+use super::{Namespace, CloneFlags};
 
 /// Process IDs
 ///
 /// Process IDs are unique and specific to a PID namespace. Processes from
 /// different namespaces are unable to determine any information about processes
 /// in other PID namespaces.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Pid {}
 
 impl Pid {
-	/// Configure a new PID namespace to for creation.
-	pub fn new() -> Pid {
-		Pid {}
-	}
+    /// Configure a new PID namespace to for creation.
+    pub fn new() -> Pid {
+        Pid {}
+    }
 }
 
 impl Namespace for Pid {
-	fn clone_flag(&self) -> c_int {
-		CLONE_NEWPID
-	}
+    fn clone_flag(&self) -> Option<CloneFlags> {
+        Some(CloneFlags::CLONE_NEWPID)
+    }
 }

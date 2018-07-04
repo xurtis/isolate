@@ -8,12 +8,12 @@ dependencies = [
 
 [[package]]
 name = "backtrace"
-version = "0.3.8"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "backtrace-sys 0.1.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg-if 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-demangle 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -24,12 +24,17 @@ version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cc 1.0.17 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "bitflags"
 version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "bitflags"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -55,44 +60,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "errno"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.41 (registry+https://github.com/rust-lang/crates.io-index)",
- "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "error-chain"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "backtrace 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "backtrace 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "isolate"
 version = "0.1.2"
 dependencies = [
+ "backtrace 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "errno 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nix 0.11.0 (git+https://github.com/xurtis/nix?branch=staging)",
  "serde 1.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.64 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "unshare 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "kernel32-sys"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -102,7 +89,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
-version = "0.2.41"
+version = "0.2.42"
+source = "git+https://github.com/rust-lang/libc#8a9b980a8402fde4c7dec14050ec75d742cc1acb"
+
+[[package]]
+name = "libc"
+version = "0.2.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -110,7 +102,7 @@ name = "memchr"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -120,7 +112,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cfg-if 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
+ "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "nix"
+version = "0.11.0"
+source = "git+https://github.com/xurtis/nix?branch=staging#ba0a5e69b7e68c167c68f09029eac7117c3a97ff"
+dependencies = [
+ "bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cc 1.0.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cfg-if 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (git+https://github.com/rust-lang/libc)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -235,7 +239,7 @@ name = "unshare"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -251,22 +255,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "winapi"
-version = "0.2.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "winapi"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "winapi-i686-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi-x86_64-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "winapi-build"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "winapi-i686-pc-windows-gnu"
@@ -280,18 +274,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
 "checksum aho-corasick 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)" = "d6531d44de723825aa81398a6415283229725a00fa30713812ab9323faa82fc4"
-"checksum backtrace 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "dbdd17cd962b570302f5297aea8648d5923e22e555c2ed2d8b2e34eca646bf6d"
+"checksum backtrace 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "89a47830402e9981c5c41223151efcced65a0510c13097c769cede7efb34782a"
 "checksum backtrace-sys 0.1.23 (registry+https://github.com/rust-lang/crates.io-index)" = "bff67d0c06556c0b8e6b5f090f0eac52d950d9dfd1d35ba04e4ca3543eaf6a7e"
 "checksum bitflags 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4efd02e230a02e18f92fc2735f44597385ed02ad8f831e7c1c1156ee5e1ab3a5"
+"checksum bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d0c54bb8f454c567f21197eefcdbf5679d0bd99f2ddbe52e84c77061952e6789"
 "checksum cc 1.0.17 (registry+https://github.com/rust-lang/crates.io-index)" = "49ec142f5768efb5b7622aebc3fdbdbb8950a4b9ba996393cb76ef7466e8747d"
 "checksum cfg-if 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "405216fd8fe65f718daa7102ea808a946b6ce40c742998fbfd3463645552de18"
 "checksum docopt 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d8acd393692c503b168471874953a2531df0e9ab77d0b6bbc582395743300a4a"
-"checksum errno 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "b2c858c42ac0b88532f48fca88b0ed947cad4f1f64d904bcd6c9f138f7b95d70"
 "checksum error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff511d5dc435d703f4971bc399647c9bc38e20cb41452e3b9feb4765419ed3f3"
-"checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum lazy_static 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e6412c5e2ad9584b0b8e979393122026cdd6d2a80b933f890dcd694ddbe73739"
-"checksum libc 0.2.41 (registry+https://github.com/rust-lang/crates.io-index)" = "ac8ebf8343a981e2fa97042b14768f02ed3e1d602eac06cae6166df3c8ced206"
+"checksum libc 0.2.42 (git+https://github.com/rust-lang/libc)" = "<none>"
+"checksum libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)" = "b685088df2b950fccadf07a7187c8ef846a959c142338a48f9dc0b94517eb5f1"
 "checksum memchr 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "796fba70e76612589ed2ce7f45282f5af869e0fdd7cc6199fa1aa1f1d591ba9d"
+"checksum nix 0.11.0 (git+https://github.com/xurtis/nix?branch=staging)" = "<none>"
 "checksum nix 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a2c5afeb0198ec7be8569d666644b574345aad2e95a53baf3a532da3e0f3fb32"
 "checksum proc-macro2 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "1fa93823f53cfd0f5ac117b189aed6cfdfb2cfc0a9d82e956dd7927595ed7d46"
 "checksum quote 0.6.3 (registry+https://github.com/rust-lang/crates.io-index)" = "e44651a0dc4cdd99f71c83b561e221f714912d11af1a4dff0631f923d53af035"
@@ -310,8 +305,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum unshare 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1fe84cfa2f9f2fc25e603b02abb1ceb5aee8f99f4845e7f697d97988654b5c41"
 "checksum utf8-ranges 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "662fab6525a98beff2921d7f61a39e7d59e0b425ebc7d0d9e66d316e55124122"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
-"checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "04e3bd221fcbe8a271359c04f21a76db7d0c6028862d1bb5512d85e1e2eb5bb3"
-"checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
 "checksum winapi-i686-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
 "checksum winapi-x86_64-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"

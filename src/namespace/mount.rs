@@ -365,10 +365,8 @@ impl Namespace for Mount {
     fn internal_config(&mut self) -> Result<()> {
         self.mount()
     }
-}
 
-impl Drop for Mount {
-    fn drop(&mut self) {
+    fn internal_cleanup(&mut self) {
         match (&self.mounted, self.umount) {
             (Some(ref path), true) => umount(path).expect("Unmounting"),
             _ => {}

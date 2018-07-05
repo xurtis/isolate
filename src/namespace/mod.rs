@@ -64,6 +64,14 @@ pub trait Namespace: NamespaceClone + ::std::fmt::Debug + Send {
         Ok(())
     }
 
+    /// Cleanup the system from within the namespace at the end of the process.
+    ///
+    /// This executes all of the changes that need to be made internal to the
+    /// namespace when the process ends.
+    fn internal_cleanup(&mut self) {
+        Ok(())
+    }
+
     /// Configure the system from outside the namespace after creation.
     ///
     /// This excutes all of the changes needed to be made externally to the

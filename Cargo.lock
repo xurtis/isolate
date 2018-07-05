@@ -119,7 +119,7 @@ dependencies = [
 [[package]]
 name = "nix"
 version = "0.11.0"
-source = "git+https://github.com/xurtis/nix?branch=staging#ba0a5e69b7e68c167c68f09029eac7117c3a97ff"
+source = "git+https://github.com/xurtis/nix?branch=staging#ada1a678a3bcd83970e501a95db45fbf33d240cd"
 dependencies = [
  "bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.17 (registry+https://github.com/rust-lang/crates.io-index)",

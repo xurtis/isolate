@@ -27,7 +27,7 @@ fn main() -> isolate::Result<()> {
         .with(dev)
         .with(sys);
 
-    let child = context.exec_private(shell)?;
+    let child = context.exec_shared(shell)?;
     ::std::mem::drop(context);
     child.wait()?;
 

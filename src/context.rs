@@ -14,10 +14,17 @@ use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
 use error::*;
 use ::namespace::Namespace;
 
+#[derive(Debug, Clone)]
+enum Location {
+    Parent,
+    Child,
+}
+
 /// A process execution context constructed of namespaces.
 #[derive(Debug, Clone)]
 pub struct Context {
     namespaces: Vec<Box<Namespace>>,
+    location: Location,
 }
 
 impl Context {
@@ -27,7 +34,8 @@ impl Context {
     /// in a new process with the same privileges as the parent.
     pub fn new() -> Context {
         Context {
-            namespaces: Vec::new()
+            namespaces: Vec::new(),
+            location: Location::Parent,
         }
     }
 
@@ -90,7 +98,7 @@ impl Context {
     where
         C: FnMut() + Send + 'static
     {
-        let mut context = self.clone();
+        let mut context = self.child_copy();
         Box::new(move || {
             panic::set_hook(Box::new(Context::panic_hook));
 
@@ -104,6 +112,15 @@ impl Context {
             child();
             0
         })
+    }
+
+    /// Create a copy of the context for the child.
+    fn child_copy(&self) -> Context {
+        Context {
+            location: Location::Child,
+            ..
+            self
+        }
     }
 
     /// A hook to catch panics within a child.
@@ -147,6 +164,12 @@ impl Namespace for Context {
         Ok(())
     }
 
+    fn internal_cleanup(&mut self) {
+        for ns in self.namespaces.iter().rev() {
+            ns.internal_cleanup();
+        };
+    }
+
     fn external_config(&self, child: &Child) -> Result<()> {
         for ns in &self.namespaces {
             ns.external_config(child)?;
@@ -158,7 +181,9 @@ impl Namespace for Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
-        while self.namespaces.pop().is_some() {};
+        if let Location::Child = self.location {
+            self.internal_cleanup();
+        }
     }
 }
 

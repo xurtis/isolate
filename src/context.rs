@@ -51,7 +51,7 @@ impl Context {
     /// Create a process in a new private address space.
     ///
     /// The address space is copied and no references are shared.
-    pub fn exec_private<C>(&self, f: C) -> Result<Child>
+    pub fn exec_private<C>(self, f: C) -> Result<Child>
     where
         C: FnMut() + Send + 'static
     {
@@ -62,7 +62,7 @@ impl Context {
     ///
     /// The address space is shared with the child and the calling process
     /// allowing shared access to globals, etc.
-    pub fn exec_shared<C>(&self, f: C) -> Result<Child>
+    pub fn exec_shared<C>(self, f: C) -> Result<Child>
     where
         C: FnMut() + Send + 'static
     {
@@ -70,7 +70,7 @@ impl Context {
     }
 
     /// Execute a child with a given function.
-    fn exec<C>(&self, child: C, shared: Share) -> Result<Child>
+    fn exec<C>(self, child: C, shared: Share) -> Result<Child>
     where
         C: FnMut() + Send + 'static
     {
@@ -116,11 +116,9 @@ impl Context {
 
     /// Create a copy of the context for the child.
     fn child_copy(&self) -> Context {
-        Context {
-            location: Location::Child,
-            ..
-            self
-        }
+        let mut copy = self.clone();
+        copy.location = Location::Child;
+        copy
     }
 
     /// A hook to catch panics within a child.
@@ -165,7 +163,7 @@ impl Namespace for Context {
     }
 
     fn internal_cleanup(&mut self) {
-        for ns in self.namespaces.iter().rev() {
+        for ns in self.namespaces.iter_mut().rev() {
             ns.internal_cleanup();
         };
     }

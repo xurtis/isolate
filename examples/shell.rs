@@ -28,7 +28,6 @@ fn main() -> isolate::Result<()> {
         .with(sys);
 
     let child = context.exec_shared(shell)?;
-    ::std::mem::drop(context);
     child.wait()?;
 
     Ok(())

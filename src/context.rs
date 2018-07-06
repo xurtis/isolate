@@ -44,9 +44,18 @@ impl Context {
     where
         N: 'static + Namespace
     {
-        self.namespaces.push(Box::new(ns));
+        self.push(ns);
         self
     }
+
+    /// Push a new configuration into the context.
+    pub fn push<N>(&mut self, ns: N)
+    where
+        N: 'static + Namespace
+    {
+        self.namespaces.push(Box::new(ns));
+    }
+
 
     /// Create a process in a new private address space.
     ///

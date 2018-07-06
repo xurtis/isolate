@@ -117,6 +117,7 @@ impl Context {
                     "Failed to configure context internally: {}",
                     err
                 );
+                abort();
             }
             child();
             0

@@ -1,6 +1,6 @@
 use ::error::*;
 use ::Child;
-use super::{Namespace, CloneFlags};
+use super::prelude::*;
 
 /// Process IDs
 ///
@@ -9,6 +9,8 @@ use super::{Namespace, CloneFlags};
 /// in other PID namespaces.
 #[derive(Debug, Clone)]
 pub struct Pid {}
+
+discarding_split!(Pid);
 
 impl Pid {
     /// Configure a new PID namespace to for creation.

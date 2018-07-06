@@ -7,7 +7,7 @@ use nix::mount::{mount, umount, MsFlags};
 // TODO: MS_LAZYATIME (not currently in libc)
 
 use ::error::*;
-use super::{Namespace, CloneFlags};
+use super::prelude::*;
 
 /// A new mount namespace with no immediate mounts.
 ///
@@ -361,15 +361,26 @@ impl Namespace for Mount {
     fn clone_flag(&self) -> Option<CloneFlags> {
         Some(CloneFlags::CLONE_NEWNS)
     }
+}
 
-    fn internal_config(&mut self) -> Result<()> {
+impl Split for Mount {
+    type ExternalConfig = ();
+    type InternalConfig = Self;
+
+    fn split(self) -> ((), Mount) {
+        ((), self)
+    }
+}
+
+impl InternalConfig for Mount {
+    fn configure(&mut self) -> Result<()> {
         self.mount()
     }
 
-    fn internal_cleanup(&mut self) {
+    fn cleanup(&mut self) -> Result<()> {
         match (&self.mounted, self.umount) {
-            (Some(ref path), true) => umount(path).expect("Unmounting"),
-            _ => {}
+            (Some(ref path), true) => Ok(umount(path)?),
+            _ => Ok(())
         }
     }
 }

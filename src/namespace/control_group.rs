@@ -1,6 +1,6 @@
 use ::error::*;
 use ::Child;
-use super::{Namespace, CloneFlags};
+use super::prelude::*;
 
 /// Control group namespace representation.
 ///
@@ -10,6 +10,8 @@ use super::{Namespace, CloneFlags};
 /// is limited.
 #[derive(Debug, Clone)]
 pub struct ControlGroup {}
+
+discarding_split!(ControlGroup);
 
 impl ControlGroup {
     /// Configure a new Control Group namespace for creation.

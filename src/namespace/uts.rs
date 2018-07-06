@@ -1,6 +1,6 @@
 use ::error::*;
 use ::Child;
-use super::{Namespace, CloneFlags};
+use super::prelude::*;
 
 /// Unix Timesharing System (UTS)
 ///
@@ -8,6 +8,8 @@ use super::{Namespace, CloneFlags};
 /// This is given its own namespace and can be changed within that namespace.
 #[derive(Debug, Clone)]
 pub struct Uts {}
+
+discarding_split!(Uts);
 
 impl Uts {
     /// Configure a new UTS namespace for creation.

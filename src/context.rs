@@ -12,19 +12,32 @@ use nix::unistd::{getpid, sysconf, Pid, SysconfVar};
 use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
 
 use error::*;
-use ::namespace::Namespace;
-
-#[derive(Debug, Clone)]
-enum Location {
-    Parent,
-    Child,
-}
+use ::namespace::{
+    BoxedSplit,
+    ExternalConfig,
+    InternalConfig,
+    Namespace,
+    Split,
+    SplitBox,
+};
 
 /// A process execution context constructed of namespaces.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Context {
-    namespaces: Vec<Box<Namespace>>,
-    location: Location,
+    namespaces: Vec<Box<BoxedSplit>>,
+    share: Share,
+}
+
+/// The collection of external configrations of a context.
+#[derive(Debug)]
+pub struct ContextOuter {
+    configs: Vec<Box<ExternalConfig>>,
+}
+
+/// The collection of internal configrations of a context.
+#[derive(Debug)]
+pub struct ContextInner {
+    configs: Vec<Box<InternalConfig>>,
 }
 
 impl Context {
@@ -35,14 +48,24 @@ impl Context {
     pub fn new() -> Context {
         Context {
             namespaces: Vec::new(),
-            location: Location::Parent,
+            share: Share::Shared,
         }
+    }
+
+    /// Execute the child in a private address space.
+    ///
+    /// Executing the child in a private address space prevents it from modifying the address space
+    /// of the parent or reading any data intorduced into the address space after the child has
+    /// started executing.
+    pub fn private(mut self) -> Context {
+        self.share = Share::Private;
+        self
     }
 
     /// Add a namespace configuration to the context.
     pub fn with<N>(mut self, ns: N) -> Context
     where
-        N: 'static + Namespace
+        N: 'static + Namespace + Split
     {
         self.push(ns);
         self
@@ -51,9 +74,9 @@ impl Context {
     /// Push a new configuration into the context.
     pub fn push<N>(&mut self, ns: N)
     where
-        N: 'static + Namespace
+        N: 'static + Namespace + Split
     {
-        self.namespaces.push(Box::new(ns));
+        self.namespaces.push(SplitBox::new(ns));
     }
 
 
@@ -88,31 +111,36 @@ impl Context {
             .flat_map(|s| s.into_iter())
             .collect();
 
+        self.prepare()?;
+
+        let (mut external, internal) = self.split();
+
         // Send the closure to a new process.
         let child = Child::from_tid(clone(
-            self.wrap(child),
+            internal.wrap(child),
             Stack::new(shared)?.region_mut(),
             flags,
             Some(SIGCHLD),
         )?);
 
-        self.configure(&child)?;
+        external.configure(&child)?;
         child.cont()?;
 
         Ok(child)
     }
+}
 
+impl ContextInner {
     /// Initialise the child process.
-    fn wrap<C>(&self, mut child: C) -> Box<FnMut() -> isize + Send + 'static>
+    fn wrap<C>(mut self, mut child: C) -> Box<FnMut() -> isize + Send + 'static>
     where
         C: FnMut() + Send + 'static
     {
-        let mut context = self.child_copy();
         Box::new(move || {
-            panic::set_hook(Box::new(Context::panic_hook));
+            panic::set_hook(Box::new(ContextInner::panic_hook));
 
             kill(getpid(), SIGSTOP).expect("Stop child before running");
-            if let Err(err) = context.internal_config() {
+            if let Err(err) = self.configure() {
                 eprintln!(
                     "Failed to configure context internally: {}",
                     err
@@ -120,30 +148,15 @@ impl Context {
                 abort();
             }
             child();
+            self.cleanup().expect("Cleaining up child");
             0
         })
-    }
-
-    /// Create a copy of the context for the child.
-    fn child_copy(&self) -> Context {
-        let mut copy = self.clone();
-        copy.location = Location::Child;
-        copy
     }
 
     /// A hook to catch panics within a child.
     fn panic_hook(info: &PanicInfo) {
         eprintln!("Context panic: {}", info);
         abort();
-    }
-
-    /// Configure the context of the child externally.
-    fn configure(&self, child: &Child) -> Result<()> {
-        for namespace in &self.namespaces {
-            namespace.external_config(child)?;
-        }
-
-        Ok(())
     }
 }
 
@@ -163,35 +176,62 @@ impl Namespace for Context {
 
         Ok(())
     }
+}
 
-    fn internal_config(&mut self) -> Result<()> {
-        for ns in &mut self.namespaces {
-            ns.internal_config()?;
+impl Split for Context {
+    type ExternalConfig = ContextOuter;
+    type InternalConfig = ContextInner;
+
+    fn split(self) -> (ContextOuter, ContextInner) {
+        let mut outer_configs = Vec::new();
+        let mut inner_configs = Vec::new();
+
+        for mut ns in self.namespaces {
+            let (outer, inner) = ns.boxed_split();
+            outer_configs.push(outer);
+            inner_configs.push(inner);
+        }
+
+        (
+            ContextOuter { configs: outer_configs },
+            ContextInner { configs: inner_configs },
+        )
+    }
+}
+
+impl ExternalConfig for ContextOuter {
+    fn configure(&mut self, child: &Child) -> Result<()> {
+        for config in &mut self.configs {
+            config.configure(child)?;
         }
 
         Ok(())
     }
 
-    fn internal_cleanup(&mut self) {
-        for ns in self.namespaces.iter_mut().rev() {
-            ns.internal_cleanup();
-        };
-    }
-
-    fn external_config(&self, child: &Child) -> Result<()> {
-        for ns in &self.namespaces {
-            ns.external_config(child)?;
+    fn cleanup(&mut self, child: &Child) -> Result<()> {
+        for config in &mut self.configs {
+            config.cleanup(child)?;
         }
 
         Ok(())
     }
 }
 
-impl Drop for Context {
-    fn drop(&mut self) {
-        if let Location::Child = self.location {
-            self.internal_cleanup();
+impl InternalConfig for ContextInner {
+    fn configure(&mut self) -> Result<()> {
+        for config in &mut self.configs {
+            config.configure()?;
         }
+
+        Ok(())
+    }
+
+    fn cleanup(&mut self) -> Result<()> {
+        for config in &mut self.configs {
+            config.cleanup()?;
+        }
+
+        Ok(())
     }
 }
 

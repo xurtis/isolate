@@ -1,6 +1,6 @@
 use ::error::*;
 use ::Child;
-use super::{Namespace, CloneFlags};
+use super::prelude::*;
 
 /// Networking
 ///
@@ -15,6 +15,8 @@ use super::{Namespace, CloneFlags};
 /// devices.
 #[derive(Debug, Clone)]
 pub struct Network {}
+
+discarding_split!(Network);
 
 impl Network {
     /// Configure a new IPC namespace for creation.

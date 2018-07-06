@@ -10,7 +10,7 @@ use libc::{
 
 use ::error::*;
 use ::Child;
-use super::{Namespace, CloneFlags};
+use super::prelude::*;
 
 /// Users and Groups
 ///
@@ -95,8 +95,19 @@ impl Namespace for User {
     fn clone_flag(&self) -> Option<CloneFlags> {
         Some(CloneFlags::CLONE_NEWUSER)
     }
+}
 
-    fn external_config(&self, child: &Child) -> Result<()> {
+impl Split for User {
+    type ExternalConfig = Self;
+    type InternalConfig = ();
+
+    fn split(self) -> (User, ()) {
+        (self, ())
+    }
+}
+
+impl ExternalConfig for User {
+    fn configure(&mut self, child: &Child) -> Result<()> {
         if self.map_root_user {
             self.set_root_user(child)?;
         }

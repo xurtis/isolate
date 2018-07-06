@@ -11,8 +11,9 @@ extern crate nix;
 
 #[macro_use]
 mod error;
-mod context;
+#[macro_use]
 pub mod namespace;
+mod context;
 
 pub use context::{Child, Context};
 pub use error::*;

@@ -1,6 +1,6 @@
 use ::error::*;
 use ::Child;
-use super::{Namespace, CloneFlags};
+use super::prelude::*;
 
 /// Inter-Process Communication.
 ///
@@ -11,6 +11,8 @@ use super::{Namespace, CloneFlags};
 /// information of these processes existing.
 #[derive(Debug, Clone)]
 pub struct Ipc {}
+
+discarding_split!(Ipc);
 
 impl Ipc {
     /// Configure a new IPC namespace for creation.

@@ -21,10 +21,14 @@ use ::namespace::{
     SplitBox,
 };
 
+const DEFAULT_STACK_SIZE: usize = 8 * 1024 * 1024;
+
 /// A process execution context constructed of namespaces.
 #[derive(Debug)]
 pub struct Context {
     namespaces: Vec<Box<BoxedSplit>>,
+    name: Option<String>,
+    stack_size: usize,
     share: Share,
 }
 
@@ -48,6 +52,8 @@ impl Context {
     pub fn new() -> Context {
         Context {
             namespaces: Vec::new(),
+            name: None,
+            stack_size: DEFAULT_STACK_SIZE,
             share: Share::Shared,
         }
     }
@@ -59,6 +65,12 @@ impl Context {
     /// started executing.
     pub fn private(mut self) -> Context {
         self.share = Share::Private;
+        self
+    }
+
+    /// Set the size of the child's stack.
+    pub fn stack_size(mut self, size: usize) -> Context {
+        self.stack_size = size;
         self
     }
 
@@ -113,12 +125,13 @@ impl Context {
 
         self.prepare()?;
 
+        let stack_size = self.stack_size;
         let (mut external, internal) = self.split();
 
         // Send the closure to a new process.
         let child = Child::from_tid(clone(
             internal.wrap(child),
-            Stack::new(shared)?.region_mut(),
+            Stack::new(stack_size, shared)?.region_mut(),
             flags,
             Some(SIGCHLD),
         )?);
@@ -263,24 +276,20 @@ struct Stack {
 }
 
 impl Stack {
-    const PAGES: size_t = 2 * 1024;
     const NO_FILE: c_int = -1;
     const NO_OFFSET: off_t = 0;
 
-    fn new(share: Share) -> Result<Stack> {
+    fn new(size: usize, share: Share) -> Result<Stack> {
         let prot = ProtFlags::PROT_WRITE | ProtFlags::PROT_READ;
         let flags =
             share.map() |
             MapFlags::MAP_ANONYMOUS |
             MapFlags::MAP_STACK;
 
-        let size = Stack::PAGES * sysconf(SysconfVar::PAGE_SIZE)?
-            .expect("Getting page size") as size_t;
-
         let address = unsafe {
             mmap(
                 ptr::null_mut(),
-                size,
+                Stack::round_to_pages(size)?,
                 prot,
                 flags,
                 Stack::NO_FILE,
@@ -289,6 +298,11 @@ impl Stack {
         }?;
 
         Stack::from_ptr(address as *mut c_void, size)
+    }
+
+    fn round_to_pages(size: usize) -> Result<usize> {
+        let page_size = sysconf(SysconfVar::PAGE_SIZE)?.unwrap() as usize;
+        Ok(size + (page_size - (size % page_size)))
     }
 
     fn from_ptr(ptr: *mut c_void, size: usize) -> Result<Stack> {

@@ -29,7 +29,7 @@ pub struct Context {
     namespaces: Vec<Box<BoxedSplit>>,
     name: Option<String>,
     stack_size: usize,
-    share: Share,
+    shared: Share,
 }
 
 /// The collection of external configrations of a context.
@@ -54,7 +54,7 @@ impl Context {
             namespaces: Vec::new(),
             name: None,
             stack_size: DEFAULT_STACK_SIZE,
-            share: Share::Shared,
+            shared: Share::Shared,
         }
     }
 
@@ -64,7 +64,7 @@ impl Context {
     /// of the parent or reading any data intorduced into the address space after the child has
     /// started executing.
     pub fn private(mut self) -> Context {
-        self.share = Share::Private;
+        self.shared = Share::Private;
         self
     }
 
@@ -91,39 +91,19 @@ impl Context {
         self.namespaces.push(SplitBox::new(ns));
     }
 
-
-    /// Create a process in a new private address space.
-    ///
-    /// The address space is copied and no references are shared.
-    pub fn exec_private<C>(self, f: C) -> Result<Child>
-    where
-        C: FnMut() + Send + 'static
-    {
-        self.exec(f, Share::Private)
-    }
-
-    /// Create and enter the context, running the given function.
-    ///
-    /// The address space is shared with the child and the calling process
-    /// allowing shared access to globals, etc.
-    pub fn exec_shared<C>(self, f: C) -> Result<Child>
-    where
-        C: FnMut() + Send + 'static
-    {
-        self.exec(f, Share::Shared)
-    }
-
     /// Execute a child with a given function.
-    fn exec<C>(self, child: C, shared: Share) -> Result<Child>
+    pub fn spawn<C>(self, child: C) -> Result<Child>
     where
         C: FnMut() + Send + 'static
     {
+
+        self.prepare()?;
+
+        let shared = self.shared;
         let flags = vec![self.clone_flag(), shared.addrspace()]
             .into_iter()
             .flat_map(|s| s.into_iter())
             .collect();
-
-        self.prepare()?;
 
         let stack_size = self.stack_size;
         let (mut external, internal) = self.split();

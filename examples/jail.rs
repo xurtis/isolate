@@ -15,6 +15,7 @@ fn main() -> isolate::Result<()> {
         .map_root_group();
 
     let mut context = Context::new()
+        .private()
         .with(user_ns)
         .with(Pid::new())
         .with(ControlGroup::new())
@@ -37,7 +38,7 @@ fn main() -> isolate::Result<()> {
         context.push(Mount::recursive_bind(src, dest).make_target_dir());
     }
 
-    let child = context.exec_shared(|| {
+    let child = context.spawn(|| {
         Command::new("/sbin/chroot").args(&["/tmp/jail", "/bin/sh"]).status().unwrap();
     })?;
 

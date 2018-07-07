@@ -27,7 +27,7 @@ fn main() -> isolate::Result<()> {
         .with(dev)
         .with(sys);
 
-    let child = context.exec_shared(shell)?;
+    let child = context.spawn(shell)?;
     child.wait()?;
 
     Ok(())

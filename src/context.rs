@@ -1,12 +1,12 @@
-use std::ops::{Deref, DerefMut, BitOr};
+use std::ops::{Deref, DerefMut};
 use std::ptr::{NonNull, self};
 use std::slice;
 use std::panic::{PanicInfo, self};
 use std::process::abort;
 
-use libc::{size_t, c_int, off_t, c_void, SIGCHLD};
+use libc::{c_int, off_t, c_void, SIGCHLD};
 use nix::sched::{clone, CloneFlags};
-use nix::sys::mman::{mmap, MapFlags, ProtFlags};
+use nix::sys::mman::{mmap, munmap, MapFlags, ProtFlags};
 use nix::sys::signal::{kill, SIGSTOP, SIGCONT};
 use nix::unistd::{getpid, sysconf, Pid, SysconfVar};
 use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
@@ -106,17 +106,22 @@ impl Context {
             .collect();
 
         let stack_size = self.stack_size;
+        let mut stack = Stack::new(stack_size, shared)?;
+
         let (mut external, internal) = self.split();
 
         // Send the closure to a new process.
-        let child = Child::from_tid(clone(
+        //
+        let tid = clone(
             internal.wrap(child),
-            Stack::new(stack_size, shared)?.region_mut(),
+            stack.region_mut(),
             flags,
             Some(SIGCHLD),
-        )?);
+        )?;
 
-        external.configure(&child)?;
+        external.configure(&tid)?;
+        let child = Child::new(tid, external, stack);
+
         child.cont()?;
 
         Ok(child)
@@ -140,6 +145,8 @@ impl ContextInner {
                 );
                 abort();
             }
+            // TODO: Create a new thread here with sys::thread to ensure correct thread local
+            // storage.
             child();
             self.cleanup().expect("Cleaining up child");
             0
@@ -193,7 +200,7 @@ impl Split for Context {
 }
 
 impl ExternalConfig for ContextOuter {
-    fn configure(&mut self, child: &Child) -> Result<()> {
+    fn configure(&mut self, child: &Pid) -> Result<()> {
         for config in &mut self.configs {
             config.configure(child)?;
         }
@@ -201,9 +208,9 @@ impl ExternalConfig for ContextOuter {
         Ok(())
     }
 
-    fn cleanup(&mut self, child: &Child) -> Result<()> {
+    fn cleanup(&mut self) -> Result<()> {
         for config in &mut self.configs {
-            config.cleanup(child)?;
+            config.cleanup()?;
         }
 
         Ok(())
@@ -250,6 +257,7 @@ impl Share {
     }
 }
 
+#[derive(Debug)]
 struct Stack {
     start: NonNull<u8>,
     size: usize,
@@ -266,10 +274,12 @@ impl Stack {
             MapFlags::MAP_ANONYMOUS |
             MapFlags::MAP_STACK;
 
+        let size = Stack::round_to_pages(size)?;
+
         let address = unsafe {
             mmap(
                 ptr::null_mut(),
-                Stack::round_to_pages(size)?,
+                size,
                 prot,
                 flags,
                 Stack::NO_FILE,
@@ -324,13 +334,25 @@ impl DerefMut for Stack {
     }
 }
 
+impl Drop for Stack {
+    fn drop(&mut self) {
+        unsafe {
+            munmap(self.start.as_ptr() as *mut _, self.size).expect("Deallocating child stack")
+        }
+    }
+}
+
 /// The child thread that has been started in the context.
 #[derive(Debug)]
-pub struct Child(Pid);
+pub struct Child {
+    tid: Pid,
+    config: ContextOuter,
+    stack: Stack,
+}
 
 impl Child {
-    fn from_tid(tid: Pid) -> Child {
-        Child(tid)
+    fn new(tid: Pid, config: ContextOuter, stack: Stack) -> Child {
+        Child { tid, config, stack }
     }
 
     /// Wait for a the child process to exit.
@@ -340,12 +362,19 @@ impl Child {
 
     /// Get the PID of the child process.
     pub fn pid(&self) -> Pid {
-        self.0.clone()
+        self.tid
     }
 
     /// Tell the child to continue execution.
     fn cont(&self) -> Result<()> {
         waitpid(self.pid(), Some(WaitPidFlag::WSTOPPED))?;
-        Ok(kill(self.0, SIGCONT)?)
+        Ok(kill(self.pid(), SIGCONT)?)
+    }
+}
+
+impl Drop for Child {
+    fn drop(&mut self) {
+        self.config.cleanup().expect("Cleaning up child context");
+        waitpid(self.pid(), None).expect("Waiting for child");
     }
 }

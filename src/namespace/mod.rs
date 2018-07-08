@@ -35,6 +35,7 @@ mod pid;
 mod user;
 mod uts;
 
+pub use nix::unistd;
 use nix::sched::CloneFlags;
 
 pub use self::control_group::ControlGroup;
@@ -54,6 +55,7 @@ mod prelude {
     pub(super) use super::InternalConfig;
     pub(super) use super::ExternalConfig;
     pub(super) use super::Split;
+    pub(super) use nix::unistd::Pid;
 }
 
 /// A trait that represents a namespace that can be created and entered.
@@ -126,7 +128,7 @@ pub trait ExternalConfig: ::std::fmt::Debug {
     ///
     /// This excutes all of the changes needed to be made externally to the
     /// namespace in order for it to operate as desired.
-    fn configure(&mut self, &Child) -> Result<()> {
+    fn configure(&mut self, &unistd::Pid) -> Result<()> {
         Ok(())
     }
 
@@ -134,7 +136,7 @@ pub trait ExternalConfig: ::std::fmt::Debug {
     ///
     /// This is executed after the thread is completed executing (either successfully or
     /// unsuccessfully).
-    fn cleanup(&mut self, &Child) -> Result<()> {
+    fn cleanup(&mut self) -> Result<()> {
         Ok(())
     }
 }

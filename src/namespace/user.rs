@@ -58,24 +58,24 @@ impl User {
     }
 
     /// Map root to the calling user.
-    fn set_root_user(&self, child: &Child) -> Result<()> {
+    fn set_root_user(&self, child: &Pid) -> Result<()> {
         let uid = unsafe { getuid() };
         let mut uid_map = OpenOptions::new()
             .append(true)
-            .open(format!("/proc/{}/uid_map", child.pid()))?;
+            .open(format!("/proc/{}/uid_map", child))?;
         uid_map.write_all(format!("0 {} 1", uid).as_bytes())?;
 
         Ok(())
     }
 
     /// Map root group to calling user gid.
-    fn set_root_group(&self, child: &Child) -> Result<()> {
+    fn set_root_group(&self, child: &Pid) -> Result<()> {
         SetGroups::Deny.write(child)?;
 
         let gid = unsafe { getgid() };
         let mut gid_map = OpenOptions::new()
             .append(true)
-            .open(format!("/proc/{}/gid_map", child.pid()))?;
+            .open(format!("/proc/{}/gid_map", child))?;
         gid_map.write_all(format!("0 {} 1", gid).as_bytes())?;
 
         Ok(())
@@ -107,7 +107,7 @@ impl Split for User {
 }
 
 impl ExternalConfig for User {
-    fn configure(&mut self, child: &Child) -> Result<()> {
+    fn configure(&mut self, child: &Pid) -> Result<()> {
         if self.map_root_user {
             self.set_root_user(child)?;
         }
@@ -127,10 +127,10 @@ enum SetGroups {
 }
 
 impl SetGroups {
-    fn write(&self, child: &Child) -> Result<()> {
+    fn write(&self, child: &Pid) -> Result<()> {
         let mut setgroup = OpenOptions::new()
             .append(true)
-            .open(format!("/proc/{}/setgroups", child.pid()))?;
+            .open(format!("/proc/{}/setgroups", child))?;
         setgroup.write_all(format!("{}", self).as_bytes())?;
 
         Ok(())
